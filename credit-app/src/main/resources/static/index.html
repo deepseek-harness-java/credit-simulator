@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>慧借计划 · 贷款试算助手</title>
+<style>
+:root {
+  /* 金融财务设计语言（信贷分支）：深藏蓝 + 铜金，利率曲线/还款进度弧母题，衬线数字 */
+  --bg: #eef1f6;
+  --card: #fbfcfe;
+  --ink: #17233a;
+  --muted: #7d8698;
+  --primary: #16294d;
+  --primary-soft: #e2e8f3;
+  --copper: #a86e3f;
+  --copper-soft: #f3e7d8;
+  --red: #b54a3c;
+  --green: #2e7d5b;
+  --line: rgba(23, 35, 58, .12);
+  --shadow: 0 18px 44px rgba(23, 35, 58, .10);
+  --r-sm: 10px; --r-md: 16px; --r-lg: 22px; --r-pill: 999px;
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --num: "Georgia", "Times New Roman", "Songti SC", serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { font-family: var(--font); background: var(--bg); color: var(--ink); min-height: 100vh; }
+.page-bg {
+  position: fixed; z-index: -2; inset: 0;
+  background:
+    radial-gradient(circle at 88% 0, rgba(168,110,63,.14) 0, transparent 30%),
+    radial-gradient(circle at 0% 55%, rgba(22,41,77,.10) 0, transparent 40%),
+    linear-gradient(180deg, #f7f9fc, var(--bg) 55%);
+}
+.page-bg::after {
+  /* 利率曲线纹理 */
+  content: ""; position: fixed; z-index: -1; inset: 0; opacity: .5;
+  background-image:
+    repeating-linear-gradient(115deg, transparent, transparent 120px, rgba(22,41,77,.03) 121px, transparent 122px),
+    repeating-linear-gradient(65deg, transparent, transparent 160px, rgba(168,110,63,.04) 161px, transparent 162px);
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 110px; }
+
+/* 顶部：报表刊头式 */
+header.top {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 18px 4px 14px; border-bottom: 2px solid var(--ink); margin-bottom: 22px;
+}
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand h1 { font-size: 24px; letter-spacing: 4px; font-weight: 700; }
+.brand .en { font-family: var(--num); font-style: italic; color: var(--copper); font-size: 13px; letter-spacing: 1px; }
+.top .rate-tag {
+  font-family: var(--num); font-size: 14px; color: var(--primary);
+  border: 1px solid var(--primary); border-radius: var(--r-pill); padding: 4px 14px;
+}
+
+/* 试算台：本金/利率/期限三格 + 双弧对比 */
+.calc {
+  background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--primary);
+  border-radius: var(--r-md); box-shadow: var(--shadow); padding: 22px 26px; margin-bottom: 22px;
+}
+.calc h2 { font-size: 15px; letter-spacing: 3px; margin-bottom: 16px; }
+.calc h2 small { color: var(--muted); font-weight: 400; letter-spacing: 1px; margin-left: 8px; font-size: 12px; }
+.fields { display: grid; grid-template-columns: 1.2fr .8fr .8fr .8fr; gap: 12px; margin-bottom: 6px; }
+.field label { display: block; font-size: 12px; color: var(--muted); letter-spacing: 1px; margin-bottom: 6px; }
+.field input {
+  width: 100%; font-family: var(--num); font-size: 18px; color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--r-sm); padding: 9px 12px; background: #fff;
+  outline: none; transition: border-color .15s;
+}
+.field input:focus { border-color: var(--primary); }
+.calc-actions { display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap; }
+button.btn {
+  font-family: var(--font); font-size: 14px; letter-spacing: 2px; cursor: pointer;
+  border-radius: var(--r-pill); padding: 9px 22px; border: 1px solid var(--primary);
+  transition: transform .12s, box-shadow .12s;
+}
+button.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--primary); color: #f5f2ea; }
+.btn-primary:hover { box-shadow: 0 6px 16px rgba(22,41,77,.28); }
+.btn-ghost { background: transparent; color: var(--primary); }
+.btn-ghost:hover { background: var(--primary-soft); }
+.calc-actions .hint { font-size: 12px; color: var(--muted); }
+
+/* 结果区：双卡对比 + 进度弧 */
+.result { margin-top: 20px; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.plan-card {
+  border: 1px solid var(--line); border-radius: var(--r-md); padding: 18px 20px;
+  background: linear-gradient(180deg, #fff, var(--card));
+}
+.plan-card.ep { border-top: 3px solid var(--primary); }
+.plan-card.pr { border-top: 3px solid var(--copper); }
+.plan-card h3 { font-size: 14px; letter-spacing: 2px; display: flex; justify-content: space-between; align-items: center; }
+.plan-card h3 .badge { font-size: 11px; color: var(--muted); font-weight: 400; letter-spacing: 1px; }
+.plan-card .monthly { font-family: var(--num); font-size: 30px; font-weight: 700; margin: 10px 0 2px; }
+.plan-card .monthly small { font-size: 13px; color: var(--muted); font-weight: 400; }
+.plan-card .sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.kv { display: flex; justify-content: space-between; font-size: 13px; padding: 7px 0; border-top: 1px dashed var(--line); }
+.kv b { font-family: var(--num); font-weight: 700; }
+.arc-row { display: flex; gap: 16px; align-items: center; margin-top: 14px; }
+.arc { position: relative; width: 84px; height: 84px; flex: none; }
+.arc svg { transform: rotate(-90deg); }
+.arc .arc-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.arc .arc-label b { font-family: var(--num); font-size: 16px; }
+.arc .arc-label span { font-size: 10px; color: var(--muted); }
+.afford { font-size: 13px; line-height: 1.7; }
+.afford .verdict { font-weight: 700; }
+.afford .verdict.ok { color: var(--green); }
+.afford .verdict.tight { color: var(--copper); }
+.afford .verdict.bad { color: var(--red); }
+.diff-note {
+  margin-top: 14px; font-size: 13px; background: var(--copper-soft);
+  border-left: 3px solid var(--copper); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 10px 14px; line-height: 1.7;
+}
+.diff-note b { font-family: var(--num); }
+
+/* 产品货架 */
+.products { margin-bottom: 22px; }
+.products h2 { font-size: 15px; letter-spacing: 3px; margin: 26px 4px 14px; }
+.products h2 small { color: var(--muted); font-weight: 400; letter-spacing: 1px; margin-left: 8px; font-size: 12px; }
+.shelf { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.p-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: 16px 18px; box-shadow: 0 8px 22px rgba(23,35,58,.06);
+  transition: transform .15s, box-shadow .15s; cursor: pointer; position: relative; overflow: hidden;
+}
+.p-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.p-card::before { /* 利率曲线装饰 */
+  content: ""; position: absolute; right: -18px; top: -18px; width: 76px; height: 76px;
+  background: radial-gradient(circle at 30% 30%, var(--copper-soft), transparent 70%);
+  border-radius: 50%;
+}
+.p-card .cat { font-size: 11px; color: var(--copper); letter-spacing: 2px; margin-bottom: 6px; }
+.p-card h3 { font-size: 15px; margin-bottom: 10px; }
+.p-card .rate { font-family: var(--num); font-size: 26px; font-weight: 700; color: var(--primary); }
+.p-card .rate small { font-size: 12px; color: var(--muted); font-weight: 400; }
+.p-card .range { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.7; }
+.p-card .tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.p-card .tag { font-size: 11px; color: var(--primary); background: var(--primary-soft); border-radius: var(--r-pill); padding: 2px 9px; }
+.p-card .use-btn {
+  margin-top: 12px; width: 100%; font-size: 12px; letter-spacing: 2px; cursor: pointer;
+  border: 1px solid var(--primary); color: var(--primary); background: transparent;
+  border-radius: var(--r-pill); padding: 6px 0;
+}
+.p-card .use-btn:hover { background: var(--primary); color: #f5f2ea; }
+
+/* 计划表 */
+.schedule-box { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+.schedule-box h3 { font-size: 13px; letter-spacing: 2px; padding: 12px 18px; background: var(--primary-soft); display: flex; gap: 14px; }
+.schedule-box h3 .tab { cursor: pointer; color: var(--muted); padding: 2px 4px; }
+.schedule-box h3 .tab.on { color: var(--primary); border-bottom: 2px solid var(--primary); font-weight: 700; }
+.tbl-scroll { max-height: 300px; overflow-y: auto; }
+table.sched { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.sched th {
+  position: sticky; top: 0; background: var(--card); text-align: right; padding: 8px 14px;
+  color: var(--muted); font-weight: 400; letter-spacing: 1px; border-bottom: 1px solid var(--line);
+}
+table.sched td { text-align: right; padding: 7px 14px; border-bottom: 1px dashed var(--line); font-family: var(--num); }
+table.sched th:first-child, table.sched td:first-child { text-align: left; }
+
+/* toast + AI 浮动按钮 */
+#toast {
+  position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-8px);
+  background: var(--ink); color: #f5f2ea; font-size: 13px; border-radius: var(--r-pill);
+  padding: 9px 20px; opacity: 0; pointer-events: none; transition: all .25s; z-index: 60;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.ai-fab {
+  position: fixed; right: 26px; bottom: 26px; width: 56px; height: 56px; border-radius: 50%;
+  background: var(--primary); color: #f5f2ea; border: none; cursor: pointer; font-size: 24px;
+  box-shadow: 0 12px 30px rgba(22,41,77,.4); z-index: 50; transition: transform .15s;
+}
+.ai-fab:hover { transform: scale(1.06); }
+.ai-panel {
+  position: fixed; right: 26px; bottom: 96px; width: 400px; max-width: calc(100vw - 40px);
+  height: 560px; max-height: calc(100vh - 140px); background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; z-index: 50; overflow: hidden;
+}
+.ai-head {
+  padding: 14px 18px; border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: center;
+  background: linear-gradient(135deg, var(--primary), #24406e); color: #f5f2ea;
+}
+.ai-head b { font-size: 14px; letter-spacing: 2px; }
+.ai-head span { font-size: 11px; opacity: .75; }
+.ai-head .close { cursor: pointer; font-size: 18px; opacity: .8; background: none; border: none; color: inherit; }
+.ai-msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 86%; font-size: 13.5px; line-height: 1.7; border-radius: 14px; padding: 10px 14px; white-space: pre-wrap; word-break: break-word; }
+.msg.user { align-self: flex-end; background: var(--primary); color: #f5f2ea; border-bottom-right-radius: 4px; }
+.msg.ai { align-self: flex-start; background: #f1f3f8; border-bottom-left-radius: 4px; }
+.msg.ai.thinking { color: var(--muted); }
+.msg.ai.thinking::after { content: "…"; animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
+.msg.ai table { border-collapse: collapse; margin: 8px 0; font-size: 12px; }
+.msg.ai th, .msg.ai td { border: 1px solid var(--line); padding: 4px 8px; }
+.tool-tag { font-size: 11px; color: var(--copper); background: var(--copper-soft); border-radius: var(--r-pill); padding: 2px 10px; align-self: flex-start; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 10px; }
+.chips button {
+  font-size: 12px; border: 1px solid var(--line); background: #fff; color: var(--primary);
+  border-radius: var(--r-pill); padding: 5px 12px; cursor: pointer;
+}
+.chips button:hover { border-color: var(--primary); background: var(--primary-soft); }
+.ai-input { display: flex; gap: 8px; padding: 12px 16px 16px; border-top: 1px solid var(--line); }
+.ai-input textarea {
+  flex: 1; resize: none; font-family: var(--font); font-size: 13.5px; border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 9px 12px; height: 44px; outline: none; background: #fff;
+}
+.ai-input textarea:focus { border-color: var(--primary); }
+.ai-input button {
+  border: none; background: var(--primary); color: #f5f2ea; border-radius: var(--r-sm);
+  padding: 0 18px; cursor: pointer; font-size: 13px; letter-spacing: 2px;
+}
+.ai-input button:disabled { opacity: .5; cursor: default; }
+@media (max-width: 860px) {
+  .fields { grid-template-columns: 1fr 1fr; }
+  .shelf { grid-template-columns: 1fr 1fr; }
+  .compare { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="page-bg"></div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1>慧借计划</h1><span class="en">Credit Planner</span></div>
+    <span class="rate-tag">年化 3.20% 起 · 模拟试算</span>
+  </header>
+
+  <section class="calc">
+    <h2>还款试算 <small>等额本息 / 等额本金 · 精确到分</small></h2>
+    <div class="fields">
+      <div class="field"><label>借款本金（元）</label><input id="f-principal" type="number" value="100000" min="1"></div>
+      <div class="field"><label>年化利率（%）</label><input id="f-rate" type="number" value="3.85" step="0.01" min="0.01"></div>
+      <div class="field"><label>期限（月）</label><input id="f-months" type="number" value="36" min="1" max="360"></div>
+      <div class="field"><label>月收入（元，选填）</label><input id="f-income" type="number" placeholder="选填"></div>
+    </div>
+    <div class="calc-actions">
+      <button class="btn btn-primary" onclick="runCalc()">开始试算</button>
+      <button class="btn btn-ghost" onclick="runCalc(true)">含还款计划表</button>
+      <span class="hint" id="calc-hint">月供占收入 ≤50% 可承受 · 50%~70% 偏紧 · >70% 不建议</span>
+    </div>
+    <div class="result" id="result" hidden></div>
+  </section>
+
+  <section class="products">
+    <h2>在售产品 <small>点击「填入试算」自动带入利率与期限</small></h2>
+    <div class="shelf" id="shelf"></div>
+  </section>
+
+  <div class="schedule-box" id="schedule-box" hidden>
+    <h3>
+      <span class="tab on" data-tab="ep" onclick="switchSched('ep')">等额本息计划表</span>
+      <span class="tab" data-tab="pr" onclick="switchSched('pr')">等额本金计划表</span>
+    </h3>
+    <div class="tbl-scroll"><table class="sched" id="sched-table"></table></div>
+  </div>
+</div>
+
+<button class="ai-fab" onclick="toggleAI()" title="AI 贷款助手">✦</button>
+<div class="ai-panel" id="ai-panel" hidden>
+  <div class="ai-head">
+    <div><b>慧借助手</b><br><span>产品查询 · 试算 · 推荐（模拟）</span></div>
+    <button class="close" onclick="toggleAI()">✕</button>
+  </div>
+  <div class="ai-msgs" id="ai-msgs">
+    <div class="msg ai">你好，我是慧借计划助手。可以问我：<br>·「有哪些产品？利率多少？」<br>·「借 10 万 3 年，月供多少？」<br>·「月入 1 万，想借 20 万装修，帮我推荐」</div>
+  </div>
+  <div class="chips">
+    <button onclick="quick(this)">有哪些产品？</button>
+    <button onclick="quick(this)">借10万 3.85% 36期 月供多少？</button>
+    <button onclick="quick(this)">月入1万借20万装修，推荐一下</button>
+  </div>
+  <div class="ai-input">
+    <textarea id="ai-text" placeholder="输入你的问题…（Enter 发送）"></textarea>
+    <button id="ai-send" onclick="sendMsg()">发送</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const fmt = n => '¥' + Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const $ = id => document.getElementById(id);
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2200); }
+
+let lastData = null, schedTab = 'ep';
+
+// ---- 产品货架 ----
+async function loadProducts() {
+  try {
+    const r = await fetch('/api/products');
+    const j = await r.json();
+    $('shelf').innerHTML = (j.data || []).map(p => `
+      <div class="p-card">
+        <div class="cat">${p.category}</div>
+        <h3>${p.name}</h3>
+        <div class="rate">${p.annualRatePct.toFixed(2)}<small> % 年化起</small></div>
+        <div class="range">额度 ${fmt(p.minAmount)} ~ ${fmt(p.maxAmount)}<br>期限 ${p.minTermMonths} ~ ${p.maxTermMonths} 期</div>
+        <div class="tags">${(p.tags || []).map(t => `<span class="tag">${t}</span>`).join('')}</div>
+        <button class="use-btn" onclick='fillCalc(${JSON.stringify(p)})'>填入试算</button>
+      </div>`).join('');
+  } catch (e) { toast('产品加载失败：' + e.message); }
+}
+function fillCalc(p) {
+  $('f-principal').value = p.minAmount > 1000 ? p.minAmount : 1000;
+  $('f-rate').value = p.annualRatePct;
+  $('f-months').value = Math.min(p.maxTermMonths, 36);
+  toast('已填入「' + p.name + '」，可直接试算');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---- 试算 ----
+async function runCalc(withSchedule) {
+  const principal = parseFloat($('f-principal').value);
+  const rate = parseFloat($('f-rate').value);
+  const months = parseInt($('f-months').value);
+  const income = $('f-income').value ? parseFloat($('f-income').value) : null;
+  if (!(principal > 0) || !(rate > 0) || !(months > 0)) { toast('请填写本金、利率、期限'); return; }
+  const qs = new URLSearchParams({ principal, rate, months });
+  if (income) qs.set('monthlyIncome', income);
+  if (withSchedule) qs.set('withSchedule', '1');
+  try {
+    const r = await fetch('/api/amortize?' + qs);
+    const j = await r.json();
+    if (j.code !== 0) { toast(j.message || '试算失败'); return; }
+    lastData = j.data;
+    renderResult(j.data, !!withSchedule);
+    if (withSchedule && j.data.equalPaymentSchedule) {
+      $('schedule-box').hidden = false;
+      switchSched('ep');
+    }
+  } catch (e) { toast('试算请求失败：' + e.message); }
+}
+
+function renderResult(d, showArc) {
+  const ep = d.equalPayment, pr = d.equalPrincipal;
+  let affordHtml = '';
+  if (d.affordability) {
+    const a = d.affordability;
+    const cls = a.epRatioPct <= 50 ? 'ok' : a.epRatioPct <= 70 ? 'tight' : 'bad';
+    const rate = Math.min(a.epRatioPct / 100, 1);
+    const color = cls === 'ok' ? 'var(--green)' : cls === 'tight' ? 'var(--copper)' : 'var(--red)';
+    affordHtml = `
+      <div class="arc-row">
+        <div class="arc">
+          <svg width="84" height="84" viewBox="0 0 84 84">
+            <circle cx="42" cy="42" r="36" fill="none" stroke="var(--primary-soft)" stroke-width="8"/>
+            <circle cx="42" cy="42" r="36" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round"
+              stroke-dasharray="${(2 * Math.PI * 36 * rate).toFixed(1)} 999"/>
+          </svg>
+          <div class="arc-label"><b>${a.epRatioPct}%</b><span>月供/收入</span></div>
+        </div>
+        <div class="afford">
+          月收入 ${fmt(a.monthlyIncome)}<br>
+          <span class="verdict ${cls}">${a.verdict}</span>
+        </div>
+      </div>`;
+  }
+  $('result').hidden = false;
+  $('result').innerHTML = `
+    <div class="compare">
+      <div class="plan-card ep">
+        <h3>等额本息 <span class="badge">月供固定</span></h3>
+        <div class="monthly">${fmt(ep.monthlyFirst)}<small> /月</small></div>
+        <div class="sub">每月还款额恒定，便于规划</div>
+        <div class="kv"><span>利息总额</span><b>${fmt(ep.totalInterest)}</b></div>
+        <div class="kv"><span>还款总额</span><b>${fmt(ep.totalPayment)}</b></div>
+      </div>
+      <div class="plan-card pr">
+        <h3>等额本金 <span class="badge">月供递减</span></h3>
+        <div class="monthly">${fmt(pr.monthlyFirst)}<small> /月（首期）</small></div>
+        <div class="sub">末期约 ${fmt(pr.monthlyLast)}，逐月递减</div>
+        <div class="kv"><span>利息总额</span><b>${fmt(pr.totalInterest)}</b></div>
+        <div class="kv"><span>还款总额</span><b>${fmt(pr.totalPayment)}</b></div>
+      </div>
+    </div>
+    <div class="diff-note">等额本金比等额本息<b>少付利息 ${fmt(d.interestDiff)}</b>，但首期月供高出 ${fmt(pr.monthlyFirst - ep.monthlyFirst)}。前期现金流紧张选等额本息，想省利息且前期还得起选等额本金。</div>
+    ${affordHtml}`;
+}
+
+function switchSched(tab) {
+  schedTab = tab;
+  document.querySelectorAll('.schedule-box .tab').forEach(el => el.classList.toggle('on', el.dataset.tab === tab));
+  if (!lastData) return;
+  const rows = tab === 'ep' ? lastData.equalPaymentSchedule : lastData.equalPrincipalSchedule;
+  if (!rows) { toast('本次试算未包含计划表'); return; }
+  $('sched-table').innerHTML = `
+    <thead><tr><th>期数</th><th>月供</th><th>本金</th><th>利息</th><th>剩余本金</th></tr></thead>
+    <tbody>${rows.map(r => `<tr><td>第 ${r.period} 期</td><td>${fmt(r.payment)}</td><td>${fmt(r.principal)}</td><td>${fmt(r.interest)}</td><td>${fmt(r.remaining)}</td></tr>`).join('')}</tbody>`;
+}
+
+// ---- AI 面板 ----
+function toggleAI() {
+  const p = $('ai-panel');
+  p.hidden = !p.hidden;
+  if (!p.hidden) $('ai-text').focus();
+}
+function quick(btn) { $('ai-text').value = btn.textContent; sendMsg(); }
+
+function renderMd(el, text) {
+  // 轻量 markdown：表格 / 加粗 / 换行
+  let html = text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  const lines = html.split('\n');
+  let out = '', inTbl = false;
+  for (const line of lines) {
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      const cells = line.trim().replace(/^\||\|$/g, '').split('|').map(s => s.trim());
+      if (/^[\s:|-]+$/.test(line)) continue;
+      if (!inTbl) { out += '<table>'; inTbl = true; }
+      out += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+    } else {
+      if (inTbl) { out += '</table>'; inTbl = false; }
+      out += line + '\n';
+    }
+  }
+  if (inTbl) out += '</table>';
+  el.innerHTML = out.trim().replace(/\n/g, '<br>');
+}
+
+let sending = false;
+async function sendMsg() {
+  if (sending) return;
+  const text = $('ai-text').value.trim();
+  if (!text) return;
+  $('ai-text').value = '';
+  addMsg('user', text);
+  sending = true; $('ai-send').disabled = true;
+  const think = addMsg('ai', '思考中');
+  think.classList.add('thinking');
+  let aiEl = null, curTool = null;
+  try {
+    const resp = await fetch('/api/assistant/stream', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    });
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    const onDelta = t => {
+      if (!aiEl) { think.classList.remove('thinking'); think.textContent = ''; aiEl = think; }
+      aiEl._raw = (aiEl._raw || '') + t;
+      renderMd(aiEl, aiEl._raw);
+      aiMsgsScroll();
+    };
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        let event = 'message', dataLines = [];
+        for (const line of chunk.split('\n')) {
+          if (line.startsWith('event:')) event = line.slice(6).trim();
+          else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+        }
+        const dataStr = dataLines.join('\n');
+        if (!dataStr) continue;
+        let j; try { j = JSON.parse(dataStr); } catch { continue; }
+        if (event === 'tool' || j.type === 'tool_call' || j.tool) {
+          const name = j.tool || j.name || j.toolName || '';
+          if (name) { curTool = addToolTag(name); aiMsgsScroll(); }
+        } else if (event === 'delta' || j.type === 'delta') {
+          onDelta(j.content || j.delta || j.text || '');
+        } else if (event === 'error') {
+          think.classList.remove('thinking');
+          if (!aiEl) { think.textContent = ''; aiEl = think; }
+          aiEl._raw = (aiEl._raw || '') + (j.message || '服务异常');
+          renderMd(aiEl, aiEl._raw);
+        }
+      }
+    }
+    if (!aiEl) { think.classList.remove('thinking'); think.textContent = '（本轮无内容返回）'; }
+  } catch (e) {
+    think.classList.remove('thinking');
+    think.textContent = '连接失败：' + e.message;
+  } finally {
+    sending = false; $('ai-send').disabled = false;
+    aiMsgsScroll();
+  }
+}
+function addMsg(role, text) {
+  const el = document.createElement('div');
+  el.className = 'msg ' + role;
+  if (role === 'ai') renderMd(el, text); else el.textContent = text;
+  $('ai-msgs').appendChild(el);
+  aiMsgsScroll();
+  return el;
+}
+function addToolTag(name) {
+  const el = document.createElement('div');
+  el.className = 'tool-tag';
+  el.textContent = '⚒ ' + name.replace(/^plugin__[^_]+__/, '');
+  $('ai-msgs').appendChild(el);
+  return el;
+}
+function aiMsgsScroll() { const m = $('ai-msgs'); m.scrollTop = m.scrollHeight; }
+$('ai-text').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+});
+
+loadProducts();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+id: credit-loan-assistant
+name: 慧借计划·贷款试算助手
+version: 1.0.0
+description: 贷款产品查询、等额本息/等额本金精确试算与产品推荐
+entrypoint: cn.xiaofuge.credit.plugin.CreditPlugin
