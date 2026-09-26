@@ -465,7 +465,7 @@ async function sendMsg() {
         if (event === 'tool' || j.type === 'tool_call' || j.tool) {
           const name = j.tool || j.name || j.toolName || '';
           if (name) { curTool = addToolTag(name); aiMsgsScroll(); }
-        } else if (event === 'delta' || j.type === 'delta') {
+        } else if (event === 'delta' || event === 'chunk' || j.type === 'delta') {
           onDelta(j.content || j.delta || j.text || '');
         } else if (event === 'error') {
           think.classList.remove('thinking');
